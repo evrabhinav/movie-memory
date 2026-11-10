@@ -1,4 +1,4 @@
-import { afterAll, describe, expect, it } from "vitest";
+import { afterAll, describe, expect, it, vi } from "vitest";
 import { prisma } from "@/lib/db";
 import { getFact } from "@/lib/facts";
 import { addFact, cleanupTestUsers, failingGenerator, fakeGenerator, makeUser } from "./helpers";
@@ -7,6 +7,36 @@ afterAll(cleanupTestUsers);
 
 const lockOf = async (userId: string) =>
   (await prisma.user.findUnique({ where: { id: userId } }))?.factLockedAt ?? null;
+
+describe("movie not found", () => {
+  it("shows a message, and does not store or cache it", async () => {
+    const userId = await makeUser("asdkjhqwe zzz");
+    const generate = vi.fn(async () => "I couldn't find that movie.");
+
+    expect(await getFact(userId, generate)).toEqual({ kind: "not_found" });
+    expect(await prisma.fact.count({ where: { userId } })).toBe(0);
+    expect(await lockOf(userId)).toBeNull();
+
+    await getFact(userId, generate); // nothing cached, so OpenAI is asked again
+    expect(generate).toHaveBeenCalledTimes(2);
+  });
+
+  it("also catches small variations (curly apostrophe, no period)", async () => {
+    const userId = await makeUser("zzz");
+    const generate = vi.fn(async () => "I couldn’t find that movie");
+    expect(await getFact(userId, generate)).toEqual({ kind: "not_found" });
+    expect(await prisma.fact.count({ where: { userId } })).toBe(0);
+  });
+
+  it("keeps showing an existing real fact if the model later says 'not found'", async () => {
+    const userId = await makeUser("Inception");
+    await addFact(userId, "Inception", "A real fact", 120);
+    const generate = vi.fn(async () => "I couldn't find that movie.");
+
+    expect(await getFact(userId, generate)).toMatchObject({ kind: "fact", text: "A real fact", source: "stale" });
+    expect(await prisma.fact.count({ where: { userId } })).toBe(1); // nothing new stored
+  });
+});
 
 describe("OpenAI failure fallback", () => {
   it("returns the old fact when OpenAI fails and one exists", async () => {

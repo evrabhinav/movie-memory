@@ -34,6 +34,11 @@ export async function FactSection({ userId }: { userId: string }) {
           A fun fact is being generated. Give it a moment, then press &ldquo;New fact&rdquo;.
         </p>
       )}
+      {result.kind === "not_found" && (
+        <p className="mt-4 text-lg text-muted">
+          We couldn&apos;t find that movie, so there&apos;s no fun fact to show.
+        </p>
+      )}
       {result.kind === "error" && (
         <p role="alert" className="mt-4 text-lg text-red-400">
           {result.message}

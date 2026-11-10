@@ -1,5 +1,5 @@
 import { prisma } from "@/lib/db";
-import { generateFactText } from "@/lib/openai";
+import { generateFactText, isNotFound } from "@/lib/openai";
 
 export const CACHE_WINDOW_MS = 60_000;
 export const LOCK_LEASE_MS = 30_000;
@@ -8,6 +8,7 @@ const WAIT_FOR_OTHER_MS = 1_000;
 export type FactResult =
   | { kind: "fact"; text: string; createdAt: Date; source: "cache" | "new" | "stale" }
   | { kind: "generating" }
+  | { kind: "not_found" }
   | { kind: "error"; message: string };
 
 type Generator = (movie: string) => Promise<string>;
@@ -60,6 +61,12 @@ export async function getFact(userId: string, generate: Generator = generateFact
 
     // 3. Generate (the real generator enforces a 10 second timeout) and store.
     const text = await generate(movie);
+    // "Not a real movie" is not a fact: don't store or cache it. If we already have a real
+    // fact for this movie (the model is inconsistent), keep showing that instead.
+    if (isNotFound(text)) {
+      if (newest) return { kind: "fact", text: newest.text, createdAt: newest.createdAt, source: "stale" };
+      return { kind: "not_found" };
+    }
     const fact = await prisma.fact.create({ data: { userId, movie, text } });
     return { kind: "fact", text: fact.text, createdAt: fact.createdAt, source: "new" };
   } catch (err) {
