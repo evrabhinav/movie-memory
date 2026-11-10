@@ -1,26 +1,68 @@
 @import "tailwindcss";
 
+/* Cinematic dark theme. Tokens are reused by every page. */
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --background: #0a0a0f;
+  --foreground: #f4f4f5;
+  --surface: rgba(255, 255, 255, 0.04);
+  --border: rgba(255, 255, 255, 0.09);
+  --muted: #9a9aa8;
+  --accent: #f5b942;
+  --accent-2: #a78bfa;
+  color-scheme: dark;
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
+  --color-surface: var(--surface);
+  --color-border: var(--border);
+  --color-muted: var(--muted);
+  --color-accent: var(--accent);
+  --color-accent-2: var(--accent-2);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+body {
+  background:
+    radial-gradient(60rem 40rem at 15% -10%, rgba(245, 185, 66, 0.16), transparent 60%),
+    radial-gradient(55rem 40rem at 95% 10%, rgba(167, 139, 250, 0.16), transparent 60%),
+    radial-gradient(50rem 30rem at 50% 110%, rgba(245, 185, 66, 0.08), transparent 60%),
+    var(--background);
+  background-attachment: fixed;
+  color: var(--foreground);
+  font-family: var(--font-sans), system-ui, sans-serif;
 }
 
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+/* Slow vertical drift for the decorative film strips. */
+@keyframes film-scroll {
+  from { background-position-y: 0; }
+  to { background-position-y: 48px; }
+}
+
+.film-strip {
+  width: 28px;
+  background-image: repeating-linear-gradient(
+    to bottom,
+    rgba(255, 255, 255, 0.14) 0 14px,
+    transparent 14px 24px
+  );
+  background-size: 100% 48px;
+  border-inline: 2px solid rgba(255, 255, 255, 0.08);
+  animation: film-scroll 6s linear infinite;
+  mask-image: linear-gradient(to bottom, transparent, black 25%, black 75%, transparent);
+}
+
+@keyframes rise-in {
+  from { opacity: 0; transform: translateY(12px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.rise-in {
+  animation: rise-in 0.7s ease-out both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .film-strip, .rise-in { animation: none; }
 }
