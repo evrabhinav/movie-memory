@@ -142,7 +142,7 @@ The interesting engineering in this app is server-side: a cache window with exac
 
 ## Key tradeoffs
 - **DB lock column instead of Redis or an in-memory lock.** It works across multiple server instances with no extra infrastructure and survives restarts. The cost is a couple of extra queries per generation, and a lease (30s) instead of a true mutex.
-- **App-server clock, not DB `now()`.** The lease and cache comparisons use `Date.now()`, which keeps the code simple and testable. With several servers, clock skew of a few seconds could slightly shift the 30s lease; the 60s cache window is unaffected because it compares against the app-set `createdAt`.
+- **App-server clock, not DB `now()`.** The lock lease and the 60s cache check both use the app server's `Date.now()`, which keeps the code simple and lets tests control time by setting `createdAt` directly. With a single server this is exact. With several servers, clock skew between them shifts both the 30s lease and the 60s window by the size of the skew (typically milliseconds when servers sync via NTP). That is harmless here because generation is capped at 10s, well under the lease. The fix, if it ever mattered, is to compute the comparisons in SQL with the database's `now()`.
 - **Fixed window, not sliding.** Predictable and matches the spec, but a user can wait up to 60s for a fresh fact.
 - **Stale fact on contention.** If another request holds the lock, we return the newest existing fact instead of making the user wait. If there is none, we wait about 1s and then show a "generating" state rather than blocking.
 - **Every generated fact is stored.** Good for history and fallback, but the table grows without bound (see improvements).
